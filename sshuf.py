@@ -3,7 +3,6 @@
 import sys
 import random
 import argparse
-import math
 
 def read_lines_with_delimiter(stream, delimiter):
     """
@@ -22,7 +21,7 @@ def read_lines_with_delimiter(stream, delimiter):
         for part in parts:
             yield part + delimiter
 
-def streaming_shuffle(input_stream, output_stream, zero_terminated=False, window_min=1, window_max=float('inf')):
+def streaming_shuffle(input_stream, output_stream, zero_terminated=False, window_min=1024):
     """
     Shuffles an input stream into an output stream using a reservoir-like
     algorithm with an exponentially growing prediction of the total number of lines.
@@ -45,8 +44,8 @@ def streaming_shuffle(input_stream, output_stream, zero_terminated=False, window
 
         # Phase 2: Streaming Shuffle
         # Once the buffer is full, start the shuffling process.
-        if n > predicted_n and predicted_n < window_max:
-            predicted_n = min(predicted_n * 2, window_max)
+        if n > predicted_n:
+            predicted_n *= 2
 
         k = random.randint(0, predicted_n - 1)
 
@@ -56,10 +55,9 @@ def streaming_shuffle(input_stream, output_stream, zero_terminated=False, window
             lines[k] = line
             output_stream.write(old_line)
         else:
-            # The buffer is already at its max size (window_min), so we don't append.
-            # Instead, we just write out the new line immediately. This happens when
-            # k falls in the range [len(lines), predicted_n).
-            output_stream.write(line)
+            # The scheduled position is outside the current buffer.
+            # Append the line to the buffer so it can grow.
+            lines.append(line)
 
     # Write out any remaining lines in the buffer in random order
     random.shuffle(lines)
@@ -85,13 +83,6 @@ def main():
         metavar="N",
         help="Minimum window size for shuffling. Defaults to 1024."
     )
-    parser.add_argument(
-        "--window-max",
-        type=int,
-        default=float('inf'),
-        metavar="N",
-        help="Maximum window size for shuffling. Defaults to infinity."
-    )
 
     args = parser.parse_args()
 
@@ -99,17 +90,12 @@ def main():
         sys.stderr.write("Error: --window-min must be a positive integer\n")
         sys.exit(1)
 
-    if args.window_min > args.window_max:
-        sys.stderr.write("Error: --window-min cannot be greater than --window-max\n")
-        sys.exit(1)
-
     try:
         streaming_shuffle(
             sys.stdin,
             sys.stdout,
             zero_terminated=args.zero_terminated,
-            window_min=args.window_min,
-            window_max=args.window_max
+            window_min=args.window_min
         )
     except BrokenPipeError:
         # This can happen if the process we are piping to closes its stdin,
@@ -121,4 +107,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -87,71 +87,6 @@ class TestStreamingShuffle(unittest.TestCase):
 
         self.run_test_with_params(test_logic)
 
-    def test_window_max_is_respected(self):
-        def test_logic(zero_terminated):
-            delimiter = '\0' if zero_terminated else '\n'
-
-            input_lines = [f"line {i}{delimiter}" for i in range(200)]
-            input_stream = io.StringIO("".join(input_lines))
-            output_stream = io.StringIO()
-            
-            streaming_shuffle(input_stream, output_stream, zero_terminated=zero_terminated, window_min=10, window_max=50)
-
-            output_content = output_stream.getvalue()
-            output_split = output_content.split(delimiter)
-            if output_split[-1] == '':
-                output_split.pop()
-
-            input_lines_no_delim = [line.strip(delimiter) for line in input_lines]
-            
-            self.assertEqual(len(output_split), len(input_lines_no_delim))
-            self.assertSetEqual(set(output_split), set(input_lines_no_delim))
-
-        self.run_test_with_params(test_logic)
-
-    def test_fixed_window_shuffle(self):
-        def test_logic(zero_terminated):
-            delimiter = '\0' if zero_terminated else '\n'
-
-            input_lines = [f"line {i}{delimiter}" for i in range(100)]
-            input_stream = io.StringIO("".join(input_lines))
-            output_stream = io.StringIO()
-
-            streaming_shuffle(input_stream, output_stream, zero_terminated=zero_terminated, window_min=50, window_max=50)
-
-            output_content = output_stream.getvalue()
-            output_split = output_content.split(delimiter)
-            if output_split[-1] == '':
-                output_split.pop()
-            
-            input_lines_no_delim = [line.strip(delimiter) for line in input_lines]
-
-            self.assertEqual(len(output_split), len(input_lines_no_delim))
-            self.assertSetEqual(set(output_split), set(input_lines_no_delim))
-
-        self.run_test_with_params(test_logic)
-
-    def test_window_min_one_max_one(self):
-        def test_logic(zero_terminated):
-            delimiter = '\0' if zero_terminated else '\n'
-            input_lines = [f"line {i}{delimiter}" for i in range(100)]
-            input_stream = io.StringIO("".join(input_lines))
-            output_stream = io.StringIO()
-
-            streaming_shuffle(input_stream, output_stream, zero_terminated=zero_terminated, window_min=1, window_max=1)
-
-            output_content = output_stream.getvalue()
-            output_split = output_content.split(delimiter)
-            if output_split[-1] == '':
-                output_split.pop()
-            
-            input_lines_no_delim = [line.strip(delimiter) for line in input_lines]
-
-            self.assertEqual(len(output_split), len(input_lines_no_delim))
-            self.assertSetEqual(set(output_split), set(input_lines_no_delim))
-
-        self.run_test_with_params(test_logic)
-
     def test_duplicate_lines(self):
         def test_logic(zero_terminated):
             delimiter = '\0' if zero_terminated else '\n'
@@ -251,15 +186,6 @@ class TestStreamingShuffle(unittest.TestCase):
         self.assertSetEqual(set(output.split('\0')), set(input_data.split('\0')))
 
     @patch('sys.stderr', new_callable=io.StringIO)
-    def test_window_min_max_validation(self, mock_stderr):
-        testargs = ["sshuf.py", "--window-min", "10", "--window-max", "5"]
-        with patch.object(sys, 'argv', testargs):
-            with self.assertRaises(SystemExit) as cm:
-                main()
-            self.assertEqual(cm.exception.code, 1)
-        self.assertIn("cannot be greater than", mock_stderr.getvalue())
-
-    @patch('sys.stderr', new_callable=io.StringIO)
     def test_window_min_positive_validation(self, mock_stderr):
         for val in [0, -1, -100]:
             with self.subTest(value=val):
@@ -269,19 +195,6 @@ class TestStreamingShuffle(unittest.TestCase):
                         main()
                     self.assertEqual(cm.exception.code, 1)
                 self.assertIn("must be a positive integer", mock_stderr.getvalue())
-                mock_stderr.seek(0)
-                mock_stderr.truncate(0)
-
-    @patch('sys.stderr', new_callable=io.StringIO)
-    def test_window_max_invalid_with_default_min(self, mock_stderr):
-        for val in [0, 1, 100, 1023]:
-            with self.subTest(value=val):
-                testargs = ["sshuf.py", "--window-max", str(val)]
-                with patch.object(sys, 'argv', testargs):
-                    with self.assertRaises(SystemExit) as cm:
-                        main()
-                    self.assertEqual(cm.exception.code, 1)
-                self.assertIn("cannot be greater than", mock_stderr.getvalue())
                 mock_stderr.seek(0)
                 mock_stderr.truncate(0)
 
