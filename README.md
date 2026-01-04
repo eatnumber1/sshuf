@@ -16,7 +16,7 @@ The script reads from `stdin` and writes to `stdout`.
 
 -   `-h`, `--help`: Show the help message and exit.
 -   `-z`, `--zero-terminated`: Use a null byte (`\0`) as the line delimiter for both input and output. This is useful for safely handling filenames or other data that might contain newlines.
--   `--window-min N`: Sets the initial size of the shuffling window. The window grows exponentially from this value. Defaults to 1024.
+-   `--window-min N`: Sets the initial size of the shuffling window in lines. The window grows exponentially from this value. Defaults to 1024.
 
 ## Examples
 

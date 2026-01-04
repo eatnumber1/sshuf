@@ -81,7 +81,7 @@ def main():
         type=int,
         default=1024,
         metavar="N",
-        help="Minimum window size for shuffling. Defaults to 1024."
+        help="Minimum window size in lines for shuffling. Defaults to 1024."
     )
 
     args = parser.parse_args()
