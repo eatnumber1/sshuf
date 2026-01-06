@@ -14,16 +14,16 @@ class TestStreamingShuffle(unittest.TestCase):
 
     def test_shuffle_preserves_lines(self):
         def test_logic(zero_terminated):
-            delimiter = '\0' if zero_terminated else '\n'
+            delimiter = b'\0' if zero_terminated else b'\n'
 
-            input_lines = [f"line {i}{delimiter}" for i in range(100)]
-            input_stream = io.StringIO("".join(input_lines))
-            output_stream = io.StringIO()
+            input_lines = [f"line {i}".encode('utf-8') + delimiter for i in range(100)]
+            input_stream = io.BytesIO(b"".join(input_lines))
+            output_stream = io.BytesIO()
 
             streaming_shuffle(input_stream, output_stream, zero_terminated=zero_terminated)
 
             output_lines = output_stream.getvalue().split(delimiter)
-            if output_lines[-1] == '':
+            if output_lines[-1] == b'':
                 output_lines.pop()
             
             input_lines_no_delim = [line.strip(delimiter) for line in input_lines]
@@ -35,35 +35,35 @@ class TestStreamingShuffle(unittest.TestCase):
 
     def test_shuffle_changes_order(self):
         def test_logic(zero_terminated):
-            delimiter = '\0' if zero_terminated else '\n'
+            delimiter = b'\0' if zero_terminated else b'\n'
 
-            input_lines = [f"line {i}{delimiter}" for i in range(100)]
-            input_stream = io.StringIO("".join(input_lines))
-            output_stream = io.StringIO()
+            input_lines = [f"line {i}".encode('utf-8') + delimiter for i in range(100)]
+            input_stream = io.BytesIO(b"".join(input_lines))
+            output_stream = io.BytesIO()
 
             streaming_shuffle(input_stream, output_stream, zero_terminated=zero_terminated)
 
             output_content = output_stream.getvalue()
-            self.assertNotEqual(output_content, "".join(input_lines))
+            self.assertNotEqual(output_content, b"".join(input_lines))
 
         self.run_test_with_params(test_logic)
 
     def test_empty_input(self):
         def test_logic(zero_terminated):
-            input_stream = io.StringIO("")
-            output_stream = io.StringIO()
+            input_stream = io.BytesIO(b"")
+            output_stream = io.BytesIO()
             streaming_shuffle(input_stream, output_stream, zero_terminated=zero_terminated)
-            self.assertEqual(output_stream.getvalue(), "")
+            self.assertEqual(output_stream.getvalue(), b"")
         
         self.run_test_with_params(test_logic)
 
     def test_single_line_input(self):
         def test_logic(zero_terminated):
-            delimiter = '\0' if zero_terminated else '\n'
+            delimiter = b'\0' if zero_terminated else b'\n'
 
-            line = f"one line{delimiter}"
-            input_stream = io.StringIO(line)
-            output_stream = io.StringIO()
+            line = b"one line" + delimiter
+            input_stream = io.BytesIO(line)
+            output_stream = io.BytesIO()
             streaming_shuffle(input_stream, output_stream, zero_terminated=zero_terminated)
             self.assertEqual(output_stream.getvalue(), line)
 
@@ -71,10 +71,10 @@ class TestStreamingShuffle(unittest.TestCase):
 
     def test_window_min_buffers_all_lines(self):
         def test_logic(zero_terminated):
-            delimiter = '\0' if zero_terminated else '\n'
+            delimiter = b'\0' if zero_terminated else b'\n'
 
-            input_lines = [f"line {i}{delimiter}" for i in range(50)]
-            input_stream = io.StringIO("".join(input_lines))
+            input_lines = [f"line {i}".encode('utf-8') + delimiter for i in range(50)]
+            input_stream = io.BytesIO(b"".join(input_lines))
             output_stream = MagicMock()
 
             streaming_shuffle(input_stream, output_stream, zero_terminated=zero_terminated, window_min=100)
@@ -89,33 +89,33 @@ class TestStreamingShuffle(unittest.TestCase):
 
     def test_duplicate_lines(self):
         def test_logic(zero_terminated):
-            delimiter = '\0' if zero_terminated else '\n'
+            delimiter = b'\0' if zero_terminated else b'\n'
             # Create input with duplicates: "A", "A", "B", "B"
-            input_lines = [f"A{delimiter}", f"A{delimiter}", f"B{delimiter}", f"B{delimiter}"]
-            input_stream = io.StringIO("".join(input_lines))
-            output_stream = io.StringIO()
+            input_lines = [b"A" + delimiter, b"A" + delimiter, b"B" + delimiter, b"B" + delimiter]
+            input_stream = io.BytesIO(b"".join(input_lines))
+            output_stream = io.BytesIO()
 
             streaming_shuffle(input_stream, output_stream, zero_terminated=zero_terminated)
 
             output_content = output_stream.getvalue()
             output_split = output_content.split(delimiter)
-            if output_split[-1] == '':
+            if output_split[-1] == b'':
                 output_split.pop()
             
             # Expected: Two A's and two B's
             self.assertEqual(len(output_split), 4)
-            self.assertEqual(output_split.count("A"), 2)
-            self.assertEqual(output_split.count("B"), 2)
+            self.assertEqual(output_split.count(b"A"), 2)
+            self.assertEqual(output_split.count(b"B"), 2)
 
         self.run_test_with_params(test_logic)
 
     def test_no_trailing_delimiter(self):
         def test_logic(zero_terminated):
-            delimiter = '\0' if zero_terminated else '\n'
+            delimiter = b'\0' if zero_terminated else b'\n'
             # Input: "line1\nline2" (no newline at very end)
-            input_data = f"line1{delimiter}line2"
-            input_stream = io.StringIO(input_data)
-            output_stream = io.StringIO()
+            input_data = b"line1" + delimiter + b"line2"
+            input_stream = io.BytesIO(input_data)
+            output_stream = io.BytesIO()
 
             streaming_shuffle(input_stream, output_stream, zero_terminated=zero_terminated)
 
@@ -130,8 +130,8 @@ class TestStreamingShuffle(unittest.TestCase):
             # The shuffler doesn't enforce adding a newline if one wasn't there.
             
             # Let's just check that we got both lines back.
-            self.assertIn(f"line1{delimiter}", output_content)
-            self.assertIn("line2", output_content)
+            self.assertIn(b"line1" + delimiter, output_content)
+            self.assertIn(b"line2", output_content)
             
             # Check total length matches input length (preserves bytes exactly)
             self.assertEqual(len(output_content), len(input_data))
@@ -141,9 +141,9 @@ class TestStreamingShuffle(unittest.TestCase):
     def test_larger_input_exceeds_default_window(self):
         # Default window is 1024. Let's use 2000 lines to ensure growth.
         # This is not parameterized to save time, as the logic is the same.
-        input_lines = [f"line {i}\n" for i in range(2000)]
-        input_stream = io.StringIO("".join(input_lines))
-        output_stream = io.StringIO()
+        input_lines = [f"line {i}".encode('utf-8') + b'\n' for i in range(2000)]
+        input_stream = io.BytesIO(b"".join(input_lines))
+        output_stream = io.BytesIO()
 
         streaming_shuffle(input_stream, output_stream) # uses default window_min=1024
 
@@ -151,39 +151,63 @@ class TestStreamingShuffle(unittest.TestCase):
         self.assertEqual(len(output_lines), 2000)
         self.assertSetEqual(set(output_lines), set(input_lines))
 
+    def test_invalid_utf8(self):
+        # The byte 0x83 is invalid in UTF-8.
+        invalid_line = b"filename_with_\x83_char\n"
+        input_data = invalid_line + b"valid_line\n"
+        input_stream = io.BytesIO(input_data)
+        output_stream = io.BytesIO()
+
+        streaming_shuffle(input_stream, output_stream)
+
+        output_content = output_stream.getvalue()
+        output_lines = output_content.split(b'\n')
+        if output_lines[-1] == b'':
+            output_lines.pop()
+
+        self.assertEqual(len(output_lines), 2)
+        self.assertIn(b"filename_with_\x83_char", output_content)
+        self.assertIn(b"valid_line", output_content)
+
     def test_only_newlines(self):
         def test_logic(zero_terminated):
-            delimiter = '\\0' if zero_terminated else '\\n'
+            delimiter = b'\0' if zero_terminated else b'\n'
             # Input: 3 empty lines (just delimiters)
             input_lines = [delimiter, delimiter, delimiter]
-            input_stream = io.StringIO("".join(input_lines))
-            output_stream = io.StringIO()
+            input_stream = io.BytesIO(b"".join(input_lines))
+            output_stream = io.BytesIO()
 
             streaming_shuffle(input_stream, output_stream, zero_terminated=zero_terminated)
 
             output_content = output_stream.getvalue()
             output_split = output_content.split(delimiter)
-            if output_split[-1] == '':
+            if output_split[-1] == b'':
                 output_split.pop()
 
             # Expect 3 empty lines
             self.assertEqual(len(output_split), 3)
             for line in output_split:
-                self.assertEqual(line, "")
+                self.assertEqual(line, b"")
 
         self.run_test_with_params(test_logic)
 
-    @patch('sys.stdout', new_callable=io.StringIO)
-    def test_main_zero_terminated_arg(self, mock_stdout):
+    def test_main_zero_terminated_arg(self):
         testargs = ["sshuf.py", "-z"]
-        input_data = "a\0b\0c\0"
+        input_data = b"a\0b\0c\0"
         
+        mock_stdin = MagicMock()
+        mock_stdin.buffer = io.BytesIO(input_data)
+        
+        mock_stdout = MagicMock()
+        mock_stdout.buffer = io.BytesIO()
+
         with patch.object(sys, 'argv', testargs):
-            with patch('sys.stdin', io.StringIO(input_data)):
-                main()
+            with patch('sys.stdin', mock_stdin):
+                with patch('sys.stdout', mock_stdout):
+                    main()
         
-        output = mock_stdout.getvalue()
-        self.assertSetEqual(set(output.split('\0')), set(input_data.split('\0')))
+        output = mock_stdout.buffer.getvalue()
+        self.assertSetEqual(set(output.split(b'\0')), set(input_data.split(b'\0')))
 
     @patch('sys.stderr', new_callable=io.StringIO)
     def test_window_min_positive_validation(self, mock_stderr):

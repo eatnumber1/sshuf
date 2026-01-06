@@ -8,7 +8,7 @@ def read_lines_with_delimiter(stream, delimiter):
     """
     A generator that reads from a stream and yields lines based on a delimiter.
     """
-    buffer = ""
+    buffer = b""
     while True:
         chunk = stream.read(4096)
         if not chunk:
@@ -30,7 +30,7 @@ def streaming_shuffle(input_stream, output_stream, zero_terminated=False, window
     predicted_n = window_min
     n = 0
 
-    delimiter = '\0' if zero_terminated else '\n'
+    delimiter = b'\0' if zero_terminated else b'\n'
     line_iterator = read_lines_with_delimiter(input_stream, delimiter)
 
     for line in line_iterator:
@@ -92,8 +92,8 @@ def main():
 
     try:
         streaming_shuffle(
-            sys.stdin,
-            sys.stdout,
+            sys.stdin.buffer,
+            sys.stdout.buffer,
             zero_terminated=args.zero_terminated,
             window_min=args.window_min
         )
