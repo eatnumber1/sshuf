@@ -44,7 +44,10 @@ def streaming_shuffle(input_stream, output_stream, zero_terminated=False, window
 
         # Phase 2: Streaming Shuffle
         # Once the buffer is full, start the shuffling process.
-        if n > predicted_n:
+        # Double the predicted size early (when half full) to ensure we always
+        # have a large pool of "future" positions. This prevents the window
+        # of available slots from shrinking too much relative to the stream size.
+        if n > predicted_n // 2:
             predicted_n *= 2
 
         k = random.randint(0, predicted_n - 1)

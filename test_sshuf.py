@@ -87,6 +87,39 @@ class TestStreamingShuffle(unittest.TestCase):
 
         self.run_test_with_params(test_logic)
 
+    def test_early_doubling_buffer_growth(self):
+        """
+        Verifies that predicted_n doubles aggressively to ensure a large pool
+        of future positions.
+        
+        Setup: window_min = 10. Input = 12 lines.
+        
+        Tracing the logic (n > predicted_n // 2):
+          n=1..10: Phase 1 (Initial buffering).
+          n=6:     6 > 10 // 2. predicted_n doubles from 10 to 20.
+          n=11:    11 > 20 // 2. predicted_n doubles from 20 to 40.
+                   First call to randint(0, predicted_n - 1) uses 40 - 1 = 39.
+          n=12:    12 > 40 // 2 is False. predicted_n remains 40.
+                   Second call to randint(0, predicted_n - 1) uses 39.
+          
+        Result: At n=12, the upper bound seen by randint should be 39.
+        """
+        window_min = 10
+        num_lines = 12
+        input_lines = [b"line\n" for _ in range(num_lines)]
+        input_stream = io.BytesIO(b"".join(input_lines))
+        output_stream = MagicMock()
+
+        with patch('random.randint', return_value=0) as mock_randint:
+            streaming_shuffle(input_stream, output_stream, window_min=window_min)
+            
+            # extract all 'b' arguments from randint(a, b) calls
+            upper_bounds = [call.args[1] for call in mock_randint.call_args_list]
+            
+            # The new logic should have triggered a doubling to 40, resulting in an upper bound of 39.
+            self.assertIn(39, upper_bounds, 
+                          f"predicted_n did not grow as expected. Upper bounds seen: {upper_bounds}")
+
     def test_duplicate_lines(self):
         def test_logic(zero_terminated):
             delimiter = b'\0' if zero_terminated else b'\n'
